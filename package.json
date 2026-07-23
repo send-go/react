@@ -1,0 +1,33 @@
+{
+  "name": "@sendgo/react",
+  "version": "1.0.0",
+  "description": "Sendgo React SDK — 카카오 알림톡/친구톡, SMS/LMS/MMS (Next.js / Server Actions)",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "import": "./dist/index.js",
+      "require": "./dist/index.js",
+      "types": "./dist/index.d.ts"
+    }
+  },
+  "files": ["dist", "README.md"],
+  "scripts": {
+    "build": "tsc",
+    "prepublishOnly": "npm run build"
+  },
+  "keywords": ["sendgo", "react", "nextjs", "kakao", "alimtalk", "sms", "korea"],
+  "author": "Sendgo <dev@sendgo.io>",
+  "license": "MIT",
+  "peerDependencies": {
+    "react": ">=18.0.0",
+    "@sendgo/node": "^1.0.0"
+  },
+  "devDependencies": {
+    "typescript": "^5.4.0",
+    "@types/node": "^20.0.0",
+    "@types/react": "^18.0.0",
+    "@sendgo/node": "^1.0.0"
+  },
+  "engines": {"node": ">=18"}
+}
