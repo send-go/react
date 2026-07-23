@@ -1,118 +1,239 @@
 # @sendgo/react
 
-> **Sendgo** React SDK — 카카오 알림톡/친구톡, SMS/LMS/MMS
-> Next.js App Router Server Actions / Server Components 전용
+> **React / Next.js에서 카카오 알림톡, 친구톡, SMS를 발송하는 공식 React SDK**
 
 [![npm](https://img.shields.io/npm/v/@sendgo/react)](https://www.npmjs.com/package/@sendgo/react)
-[![Next.js](https://img.shields.io/badge/Next.js-14+-black)](https://nextjs.org)
+[![React](https://img.shields.io/badge/React-18%2B-61DAFB?logo=react)](https://react.dev)
+[![Next.js](https://img.shields.io/badge/Next.js-14%2B-black?logo=next.js)](https://nextjs.org)
 
-> **보안**: API 키는 서버에서만 사용합니다. 이 SDK의 핵심 기능은 Next.js Server Actions와 Server Components에서 사용하도록 설계되었습니다.
+> **중요**: 이 패키지는 **서버사이드 전용**입니다.
+> Next.js Server Actions, Route Handlers, API Routes에서만 사용하세요.
+> 클라이언트 컴포넌트에서 직접 사용하면 API 키가 브라우저에 노출됩니다.
 
 ---
 
-## 빠른 시작 (3단계)
-
-### 1단계 — 설치
+## 설치
 
 ```bash
 npm install @sendgo/react @sendgo/node
+# 또는
+pnpm add @sendgo/react @sendgo/node
 ```
 
-### 2단계 — 환경변수 설정
+---
 
-```env
-# .env.local (서버 전용 — NEXT_PUBLIC_ 접두사 없음)
-SENDGO_ACCESS_KEY=your_access_key
-SENDGO_SECRET_KEY=your_secret_key
-SENDGO_KAKAO_SENDER_KEY=your_kakao_key
-SENDGO_SMS_SENDER_KEY=your_sms_key
-SENDGO_API_VERSION=v2
-```
+## 빠른 시작
 
-### 3단계 — Server Action으로 알림톡 전송
+### Next.js Server Action
 
 ```typescript
-// app/actions/notification.ts
-'use server';
-import { sendAlimtalk } from '@sendgo/react';
-export { sendAlimtalk };
+// app/actions/notify.ts
+'use server'
 
+import { createSendgoClient } from '@sendgo/react';
+
+const sendgo = createSendgoClient({
+  accessKey:      process.env.SENDGO_ACCESS_KEY!,
+  secretKey:      process.env.SENDGO_SECRET_KEY!,
+  kakaoSenderKey: process.env.SENDGO_KAKAO_SENDER_KEY,
+  apiVersion:     'v2',
+});
+
+export async function sendOrderConfirmAction(phone: string, orderNo: string) {
+  return sendgo.alimtalk.send({
+    templateCode: 'ORDER_CONFIRM_001',
+    contacts: [{ contact: phone, var1: orderNo }],
+  });
+}
+```
+
+### 클라이언트 컴포넌트에서 훅 사용
+
+```tsx
 // app/components/OrderButton.tsx
-'use client';
-import { useAlimtalk } from '@sendgo/react';
-import { sendAlimtalk } from '../actions/notification';
+'use client'
 
-export function OrderButton({ phone, orderNumber }: { phone: string; orderNumber: string }) {
-  const { send, loading, error } = useAlimtalk(sendAlimtalk);
+import { useAlimtalk } from '@sendgo/react';
+import { sendOrderConfirmAction } from '../actions/notify';
+
+export function OrderButton({ phone, orderNo }: { phone: string; orderNo: string }) {
+  const { send, loading, error } = useAlimtalk(sendOrderConfirmAction);
 
   return (
-    <button onClick={() => send({ templateCode: 'ORDER_001', contacts: [{ contact: phone, var1: orderNumber }] })}
-            disabled={loading}>
-      {loading ? '발송 중...' : '주문 확인 알림 전송'}
-    </button>
+    <div>
+      <button
+        onClick={() => send(phone, orderNo)}
+        disabled={loading}
+        className="btn-primary"
+      >
+        {loading ? '발송 중...' : '주문 확인 알림 전송'}
+      </button>
+      {error && <p className="text-red-500">발송 실패: {error.message}</p>}
+    </div>
   );
 }
 ```
 
 ---
 
-## Next.js App Router 통합
-
-### Route Handler
+## 알림톡 상세 사용법
 
 ```typescript
-// app/api/notify/route.ts
-import { createSendgoClient } from '@sendgo/react';
-import { NextRequest, NextResponse } from 'next/server';
+// app/actions/alimtalk.ts
+'use server'
 
-const sendgo = createSendgoClient();
+import { createSendgoClient } from '@sendgo/react';
+
+const sendgo = createSendgoClient({
+  accessKey:      process.env.SENDGO_ACCESS_KEY!,
+  secretKey:      process.env.SENDGO_SECRET_KEY!,
+  kakaoSenderKey: process.env.SENDGO_KAKAO_SENDER_KEY,
+  smsSenderKey:   process.env.SENDGO_SMS_SENDER_KEY,
+  apiVersion:     'v2',
+});
+
+// 다건 발송
+export async function sendBulkAlimtalk() {
+  return sendgo.alimtalk.send({
+    templateCode: 'ORDER_CONFIRM_001',
+    contacts: [
+      { contact: '01011111111', name: '홍길동', var1: 'ORD-001', var2: '29,000원' },
+      { contact: '01022222222', name: '김철수', var1: 'ORD-002', var2: '15,000원' },
+      { contact: '01033333333', name: '이영희', var1: 'ORD-003', var2: '52,000원' },
+    ],
+  });
+}
+
+// 예약 발송
+export async function sendScheduledAlimtalk(phone: string) {
+  return sendgo.alimtalk.send({
+    templateCode:  'PROMO_SUMMER_2026',
+    scheduleType:  'SCHEDULED',
+    at:            '2026-07-28 09:00:00',
+    contacts:      [{ contact: phone, var1: '여름 한정 50% 할인' }],
+  });
+}
+
+// SMS 대체 발송
+export async function sendWithFallback(phone: string, trackingNo: string) {
+  return sendgo.alimtalk.send({
+    templateCode:  'DELIVERY_START_001',
+    replaceSms:    'Y',
+    smsSubject:    '[배송 시작 안내]',
+    smsContent:    `주문하신 상품이 출고되었습니다.\n송장번호: ${trackingNo}`,
+    contacts:      [{ contact: phone, var1: 'ORD-001', var2: trackingNo }],
+  });
+}
+```
+
+---
+
+## SMS / LMS / MMS 사용법
+
+```typescript
+// app/actions/sms.ts
+'use server'
+
+import { createSendgoClient } from '@sendgo/react';
+
+const sendgo = createSendgoClient({ accessKey: '...', secretKey: '...' });
+
+// SMS
+export async function sendSms(phone: string, code: string) {
+  return sendgo.sms.sendSms({
+    content:  `[Sendgo] 인증번호: ${code} (5분 이내 입력)`,
+    contacts: [{ contact: phone }],
+  });
+}
+
+// LMS
+export async function sendLms(phone: string) {
+  return sendgo.sms.sendLms({
+    subject:  '[중요] 서비스 점검 안내',
+    content:  '안녕하세요. 서비스 점검이 예정되어 있습니다.\n■ 일시: 2026-07-25 02:00 ~ 06:00',
+    contacts: [{ contact: phone }],
+  });
+}
+```
+
+---
+
+## Route Handler (App Router)
+
+```typescript
+// app/api/notify/order/route.ts
+import { NextRequest, NextResponse } from 'next/server';
+import { createSendgoClient } from '@sendgo/react';
+
+const sendgo = createSendgoClient({
+  accessKey:      process.env.SENDGO_ACCESS_KEY!,
+  secretKey:      process.env.SENDGO_SECRET_KEY!,
+  kakaoSenderKey: process.env.SENDGO_KAKAO_SENDER_KEY,
+  apiVersion:     'v2',
+});
 
 export async function POST(request: NextRequest) {
-  const { phone, orderNumber } = await request.json();
+  const { phone, orderNo, amount } = await request.json();
 
   await sendgo.alimtalk.send({
     templateCode: 'ORDER_CONFIRM_001',
-    contacts: [{ contact: phone, var1: orderNumber }],
+    contacts: [{ contact: phone, var1: orderNo, var2: amount }],
   });
 
   return NextResponse.json({ success: true });
 }
 ```
 
-### Server Component
+---
 
-```typescript
-// app/admin/page.tsx (Server Component)
-import { sendAlimtalk } from '@sendgo/react';
+## useSms 훅
 
-export default async function AdminPage() {
-  // 서버 컴포넌트에서 직접 전송 가능
-  async function handleNotify(formData: FormData) {
-    'use server';
-    await sendAlimtalk({
-      templateCode: 'ADMIN_NOTIFY_001',
-      contacts: [{ contact: formData.get('phone') as string }],
-    });
-  }
+```tsx
+'use client'
 
-  return <form action={handleNotify}>...</form>;
+import { useSms } from '@sendgo/react';
+import { sendSmsAction } from '../actions/sms';
+
+export function VerificationForm() {
+  const [phone, setPhone] = useState('');
+  const { send, loading, error, data } = useSms(sendSmsAction);
+
+  return (
+    <form onSubmit={(e) => { e.preventDefault(); send(phone, '123456'); }}>
+      <input
+        type="tel"
+        value={phone}
+        onChange={(e) => setPhone(e.target.value)}
+        placeholder="010-0000-0000"
+      />
+      <button type="submit" disabled={loading}>
+        {loading ? '발송 중...' : '인증번호 받기'}
+      </button>
+      {error && <p className="error">발송 실패: {error.message}</p>}
+      {data && <p className="success">인증번호가 발송되었습니다.</p>}
+    </form>
+  );
 }
 ```
 
 ---
 
-## SMS 전송
+## 관련 패키지
 
-```typescript
-import { sendSms, sendLms } from '@sendgo/react';
-
-// Server Action
-await sendSms({ content: '인증번호: 123456', contacts: [{ contact: '01012345678' }] });
-await sendLms({ subject: '[공지]', content: '...', contacts: [...] });
-```
+| 언어/프레임워크 | 패키지 | GitHub |
+|----------------|--------|--------|
+| Node.js (코어) | `@sendgo/node` | [node](https://github.com/send-go/node) |
+| Vue.js / Nuxt | `@sendgo/vue` | [vue](https://github.com/send-go/vue) |
+| Spring Boot | `io.sendgo:sendgo-spring` | [spring](https://github.com/send-go/spring) |
+| Python | `sendgo-python` | [python](https://github.com/send-go/python) |
+| 전체 목록 | — | [send-go GitHub 조직](https://github.com/send-go) |
 
 ---
 
 ## 라이선스
 
-MIT License © [Sendgo](https://sendgo.io)
+MIT License © 2026 [Sendgo](https://sendgo.io)
+
+---
+
+*키워드: 카카오 알림톡 React, 카카오 친구톡 Next.js, SMS 발송 React, 알림톡 Next.js Server Action, React 카카오 API, Sendgo React SDK, Next.js 알림 발송*
