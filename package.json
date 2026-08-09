@@ -2,6 +2,11 @@
   "name": "@sendgo/react",
   "version": "1.0.1",
   "description": "Sendgo React SDK — 카카오 알림톡/친구톡, SMS/LMS/MMS (Next.js / Server Actions)",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/send-go/react.git"
+  },
+  "homepage": "https://sendgo.io",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "exports": {
