@@ -10,14 +10,27 @@
 
 import Sendgo from '@sendgo/node';
 import type {
+  ShortUrlParams,
+  ShortUrlListParams,
+  ShortUrlStatsParams,
   AlimtalkParams,
+  BrandMessageListParams,
+  BrandMessageParams,
   FriendtalkParams,
   SmsParams,
   SendgoConfig,
   SendgoResponse,
 } from '@sendgo/node';
 
-export type { AlimtalkParams, FriendtalkParams, SmsParams, SendgoConfig, SendgoResponse };
+export type {
+  AlimtalkParams,
+  BrandMessageListParams,
+  BrandMessageParams,
+  FriendtalkParams,
+  SmsParams,
+  SendgoConfig,
+  SendgoResponse,
+};
 
 let _client: Sendgo | null = null;
 
@@ -48,7 +61,69 @@ export async function sendFriendtalk(params: FriendtalkParams): Promise<SendgoRe
   return getClient().friendtalk.send(params);
 }
 
+/**
+ * 브랜드메시지 전송 Server Action.
+ *
+ * 브랜드메시지는 친구톡의 후속 채널로, 채널 친구가 아닌 수신자에게도
+ * 보낼 수 있습니다(targeting: 'N'). v2 전용.
+ */
+export async function sendBrandMessage(params: BrandMessageParams): Promise<SendgoResponse> {
+  return getClient().brandMessage.send(params);
+}
+
+/** 브랜드메시지 동보 전송 Server Action — 수신 동의한 전체 채널 친구. */
+export async function broadcastBrandMessage(
+  params: Omit<BrandMessageParams, 'targeting' | 'contacts'>,
+): Promise<SendgoResponse> {
+  return getClient().brandMessage.broadcast(params);
+}
+
+/** 브랜드메시지 캠페인 목록 조회 Server Action. */
+export async function listBrandMessages(
+  params: BrandMessageListParams = {},
+): Promise<SendgoResponse> {
+  return getClient().brandMessage.campaigns(params);
+}
+
+/** 브랜드메시지 캠페인 상세 조회 Server Action. */
+export async function getBrandMessage(campaignId: string): Promise<SendgoResponse> {
+  return getClient().brandMessage.campaign(campaignId);
+}
+
 /** SMS 전송 Server Action */
+/**
+ * 짧은 URL 을 만든다. v2 전용.
+ *
+ * 같은 원본 URL 을 다시 줄이면 기존 링크가 그대로 반환된다.
+ * 캠페인별로 반응을 분리해 집계하려면 `forceNew: true` 를 쓴다.
+ */
+export async function createShortUrl(params: ShortUrlParams): Promise<SendgoResponse> {
+  return getClient().shortUrl.create(params);
+}
+
+/** 짧은 URL 목록 조회. */
+export async function listShortUrls(params: ShortUrlListParams = {}): Promise<SendgoResponse> {
+  return getClient().shortUrl.list(params);
+}
+
+/** 짧은 URL 상세 조회. */
+export async function getShortUrl(code: string): Promise<SendgoResponse> {
+  return getClient().shortUrl.show(code);
+}
+
+/** 짧은 URL 반응 통계. 일별 추이와 디바이스/유입경로/국가별 분해를 반환한다. */
+export async function shortUrlStats(
+  code: string,
+  params: ShortUrlStatsParams = {},
+): Promise<SendgoResponse> {
+  return getClient().shortUrl.stats(code, params);
+}
+
+/** 짧은 URL 리다이렉트 중지. 링크와 통계는 남는다. */
+export async function deactivateShortUrl(code: string): Promise<SendgoResponse> {
+  return getClient().shortUrl.deactivate(code);
+}
+
 export async function sendSms(params: Omit<SmsParams, 'messageType'>): Promise<SendgoResponse> {
   return getClient().sms.sendSms(params);
 }

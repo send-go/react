@@ -2,6 +2,15 @@
 export {
   sendAlimtalk,
   sendFriendtalk,
+  sendBrandMessage,
+  broadcastBrandMessage,
+  listBrandMessages,
+  getBrandMessage,
+  createShortUrl,
+  listShortUrls,
+  getShortUrl,
+  shortUrlStats,
+  deactivateShortUrl,
   sendSms,
   sendLms,
   sendMms,
@@ -14,6 +23,12 @@ export { useAlimtalk } from './hooks/useAlimtalk';
 // Re-export types from @sendgo/node
 export type {
   AlimtalkParams,
+  BrandMessageParams,
+  BrandMessageListParams,
+  BrandMessageTargeting,
+  ShortUrlParams,
+  ShortUrlListParams,
+  ShortUrlStatsParams,
   FriendtalkParams,
   SmsParams,
   SendgoConfig,
