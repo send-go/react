@@ -1,7 +1,7 @@
 {
   "name": "@sendgo/react",
-  "version": "1.2.0",
-  "description": "Sendgo React SDK — 카카오 알림톡/친구톡, SMS/LMS/MMS (Next.js / Server Actions)",
+  "version": "1.2.1",
+  "description": "Sendgo React SDK — 카카오 알림톡/브랜드메시지, SMS/LMS/MMS (Next.js / Server Actions)",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/send-go/react.git"
@@ -21,7 +21,16 @@
     "build": "tsc",
     "prepublishOnly": "npm run build"
   },
-  "keywords": ["sendgo", "react", "nextjs", "kakao", "alimtalk", "sms", "korea"],
+  "keywords": [
+    "sendgo",
+    "react",
+    "nextjs",
+    "kakao",
+    "alimtalk",
+    "brand-message",
+    "sms",
+    "korea"
+  ],
   "author": "Sendgo <dev@sendgo.io>",
   "license": "MIT",
   "peerDependencies": {
