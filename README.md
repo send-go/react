@@ -1,6 +1,6 @@
 # @sendgo/react
 
-> **React / Next.js에서 카카오 알림톡, 친구톡, SMS를 발송하는 공식 React SDK**
+> **React / Next.js에서 카카오 알림톡, 브랜드메시지, SMS를 발송하는 공식 React SDK**
 
 [![npm](https://img.shields.io/npm/v/@sendgo/react)](https://www.npmjs.com/package/@sendgo/react)
 [![React](https://img.shields.io/badge/React-18%2B-61DAFB?logo=react)](https://react.dev)
@@ -250,6 +250,15 @@ export function VerificationForm() {
 [SDK 가이드](https://sendgo.io/ko/sdk) 를 참고하세요.
 
 ## 변경 사항
+
+### 1.2.0 (2026-08-14)
+
+- **친구톡 Deprecated 표기** — 친구톡은 카카오 정책에 따라 2025-12-31 종료되었고,
+  2026-01-01 부터 발송 요청이 브랜드메시지(자유형)로 자동 대체 발송됩니다.
+  관련 API 에 각 언어의 표준 deprecation 표기를 달았습니다.
+- 자유 본문 타입(`FT`/`FI`/`FW`)의 개별 발송 경로는 아직 친구톡 API 뿐이라는 점을
+  문서에 명시했습니다 — 브랜드메시지 API 는 그 조합에 `NOT_A_BRAND_MESSAGE` 를 반환합니다.
+- 브랜드메시지 전환 안내와 메시지 타입 1:1 대응표를 README 에 추가했습니다.
 
 ### 1.1.0 (2026-08-11)
 
