@@ -249,7 +249,106 @@ export function VerificationForm() {
 사용 예시와 파라미터는 [코어 README](https://github.com/send-go) 와
 [SDK 가이드](https://sendgo.io/ko/sdk) 를 참고하세요.
 
+## 관리 API — 채널·템플릿·발신번호 등록 (v2 전용)
+
+등록·심사 작업을 Server Action 으로 노출합니다. **서버에서만** 호출하세요 —
+관리 API 도 발송 API 와 같은 키를 쓰므로 브라우저에 노출되면 안 됩니다.
+
+| Server Action | 하는 일 |
+| --- | --- |
+| `requestKakaoChannelCode(yellowId, phone)` | 1단계 — 관리자 휴대폰으로 인증번호 SMS 발송 |
+| `registerKakaoChannel(params)` | 2단계 — 인증번호로 발신프로필 생성 |
+| `listKakaoSenders()` · `syncKakaoSenders(key?)` | 발신프로필 목록 · 상태 동기화 |
+| `createNoticeTemplate(params)` | 알림톡 템플릿 등록 |
+| `requestNoticeTemplateInspection(code, comment?)` | 검수 요청 |
+| `syncNoticeTemplate(code)` | 검수 결과 폴링 |
+| `listNoticeTemplates(params?)` | 알림톡 템플릿 목록 |
+| `createBrandTemplate(params)` · `listBrandTemplates(params?)` | 브랜드메시지 템플릿 |
+| `senderNumberTypes()` · `validateSenderNumber(phone, type)` | 발신번호 유형 · 중복 확인 |
+| `registerSender(params, files)` | 발신번호 등록 신청 |
+| `listSenders()` | 발신번호 목록 (심사 상태 확인) |
+| `createMessageTemplate(params)` · `listMessageTemplates(params?)` | 문자 상용구 템플릿 |
+| `uploadKakaoImage(type, file)` · `uploadKakaoImages(type, files)` | 카카오 이미지 업로드 — 템플릿용 URL 발급 |
+| `listRejectedNumbers(params?)` | 수신거부(080) 번호 조회 |
+| `subscribeWebhook(params)` · `getWebhook()` · `testWebhook()` | 이벤트 웹훅 구독 |
+
+여기 없는 메서드(승인 취소, 휴면 해제, 템플릿 수정 등)는 `createSendgoClient()`
+로 클라이언트를 받아 직접 부르세요.
+
+> **sendgo.io 콘솔에 들어올 일이 없습니다.** 휴대폰 발신번호는 PASS 대신
+> 신분증 사본을 받아 sendgo 운영자가 대신 심사합니다. 사람이 개입하는 지점은
+> 카카오 채널 인증번호 하나뿐이고, 그것도 여러분 화면에서 입력받으면 됩니다.
+> 심사가 붙는 것들은 비동기라 웹훅으로 결과를 받으세요.
+
+```tsx
+// app/onboarding/actions.ts
+'use server';
+
+import {
+  requestKakaoChannelCode,
+  registerKakaoChannel,
+  createNoticeTemplate,
+  requestNoticeTemplateInspection,
+} from '@sendgo/react';
+
+export async function startChannelRegistration(formData: FormData) {
+  await requestKakaoChannelCode(
+    String(formData.get('yellowId')),
+    String(formData.get('phone')),
+  );
+}
+
+export async function finishChannelRegistration(formData: FormData) {
+  const created = await registerKakaoChannel({
+    token: String(formData.get('code')),        // 사용자가 문자로 받은 인증번호
+    yellowId: String(formData.get('yellowId')),
+    phoneNumber: String(formData.get('phone')),
+    categoryCode: '001001',
+  });
+
+  const kakaoSenderKey = created.data.sender.kakaoSenderKey;
+
+  const template = await createNoticeTemplate({
+    kakaoSenderKey,
+    templateName: '주문 접수 안내',
+    templateContent: '#{name}님, 주문 #{orderNo}이 접수되었습니다.',
+    templateMessageType: 'BA',
+    templateEmphasizeType: 'NONE',
+    categoryCode: '001001',
+    messagePurpose: 'order_delivery',
+    legalBasis: 'transaction',
+    benefitOrigin: 'none',
+    expiryType: 'none',
+    optInReviewConfirmed: true,
+    ctaClearConfirmed: true,
+    policyConfirmed: true,
+  });
+
+  await requestNoticeTemplateInspection(template.data.template.templateCode);
+}
+```
+
+검수 결과는 즉시 오지 않습니다. Route Handler 나 크론에서 `syncNoticeTemplate()`
+을 돌려 `inspectionStatus` 가 `APR` 이 되는지 확인하세요.
+
+---
+
 ## 변경 사항
+
+### 1.3.0 (2026-09-11)
+
+- **관리 API Server Action 추가** — 카카오 채널 등록(`requestKakaoChannelCode`,
+  `registerKakaoChannel`), 알림톡 템플릿 등록·검수 요청·폴링
+  (`createNoticeTemplate`, `requestNoticeTemplateInspection`, `syncNoticeTemplate`),
+  브랜드메시지 템플릿, 발신번호 등록 신청(`registerSender`), 문자 상용구 템플릿.
+- 관리 API 요청 타입을 re-export 했습니다.
+- `@sendgo/node` 를 `^1.3.0` 으로 올렸습니다.
+- **이벤트 웹훅** 추가 — 발신번호 승인, 알림톡 검수 결과, 채널 차단,
+  브랜드메시지 타겟팅 결과를 구독해 받습니다. 서명은 받은 원본 바이트로
+  검증합니다(SDK 에 검증 헬퍼 포함).
+- **카카오 이미지 업로드** 추가 — 브랜드메시지 템플릿의 `imageUrl` 은 카카오가
+  호스팅하는 URL 이어야 하는데, 그 URL 을 얻는 길이 콘솔에만 있었습니다.
+- **수신거부(080) 조회** 추가 — 자기 DB 의 수신 상태를 맞출 수 있습니다.
 
 ### 1.2.1 (2026-08-14)
 

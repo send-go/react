@@ -10,26 +10,55 @@
 
 import Sendgo from '@sendgo/node';
 import type {
+  MultipartFile,
   ShortUrlParams,
   ShortUrlListParams,
   ShortUrlStatsParams,
   AlimtalkParams,
   BrandMessageListParams,
   BrandMessageParams,
+  BrandTemplateListParams,
+  BrandTemplateParams,
   FriendtalkParams,
+  KakaoSenderCreateParams,
+  MessageTemplateListParams,
+  MessageTemplateParams,
+  NoticeTemplateListParams,
+  NoticeTemplateParams,
+  RejectedNumberListParams,
+  SenderNumberType,
+  SenderRegistrationFiles,
+  SenderRegistrationParams,
   SmsParams,
   SendgoConfig,
   SendgoResponse,
+  WebhookSubscriptionParams,
+  KakaoImageSingleType,
+  KakaoImageMultiType,
 } from '@sendgo/node';
 
 export type {
   AlimtalkParams,
   BrandMessageListParams,
   BrandMessageParams,
+  BrandTemplateListParams,
+  BrandTemplateParams,
   FriendtalkParams,
+  KakaoSenderCreateParams,
+  MessageTemplateListParams,
+  MessageTemplateParams,
+  NoticeTemplateListParams,
+  NoticeTemplateParams,
+  RejectedNumberListParams,
+  SenderNumberType,
+  SenderRegistrationFiles,
+  SenderRegistrationParams,
   SmsParams,
   SendgoConfig,
   SendgoResponse,
+  WebhookSubscriptionParams,
+  KakaoImageSingleType,
+  KakaoImageMultiType,
 };
 
 let _client: Sendgo | null = null;
@@ -143,6 +172,176 @@ export async function sendLms(params: Omit<SmsParams, 'messageType'>): Promise<S
 /** MMS 전송 Server Action */
 export async function sendMms(params: Omit<SmsParams, 'messageType'>): Promise<SendgoResponse> {
   return getClient().sms.sendMms(params);
+}
+
+// ----------------------------------------------------------------
+// 관리 API (v2 전용) — 등록 · 심사
+//
+// 콘솔에서만 되던 작업을 Server Action 으로 노출한다. 여기 없는 메서드
+// (승인 취소, 휴면 해제, 템플릿 수정 등)는 `createSendgoClient()` 로
+// 클라이언트를 받아 직접 부르면 된다 — 얇은 래퍼를 무한정 늘리지 않는다.
+//
+// 끝까지 자동화되지 않는 두 지점이 있다: 카카오 채널 등록의 인증번호는
+// 관리자 휴대폰으로 SMS 발송되고, 휴대폰 발신번호는 PASS 본인인증이
+// 필요해 콘솔에서만 등록된다.
+// ----------------------------------------------------------------
+
+/**
+ * 1단계 — 카카오 채널 인증번호 발송. 응답에 인증번호는 없다.
+ * 사용자가 문자로 받아 `registerKakaoChannel()` 에 넣어야 한다.
+ */
+export async function requestKakaoChannelCode(
+  yellowId: string,
+  phoneNumber: string,
+): Promise<SendgoResponse> {
+  return getClient().kakaoSenders.requestToken(yellowId, phoneNumber);
+}
+
+/** 2단계 — 인증번호로 카카오 발신프로필 등록. */
+export async function registerKakaoChannel(
+  params: KakaoSenderCreateParams,
+): Promise<SendgoResponse> {
+  return getClient().kakaoSenders.create(params);
+}
+
+/** 발신프로필 목록. */
+export async function listKakaoSenders(): Promise<SendgoResponse> {
+  return getClient().kakaoSenders.list();
+}
+
+/** 발신프로필 상태 동기화. 키를 주면 단건, 없으면 전체. */
+export async function syncKakaoSenders(kakaoSenderKey?: string): Promise<SendgoResponse> {
+  return getClient().kakaoSenders.sync(kakaoSenderKey);
+}
+
+/** 알림톡 템플릿 등록. 등록만으로는 발송할 수 없다 — 검수를 요청해야 한다. */
+export async function createNoticeTemplate(
+  params: NoticeTemplateParams,
+): Promise<SendgoResponse> {
+  return getClient().noticeTemplates.create(params);
+}
+
+/** 알림톡 템플릿 목록. */
+export async function listNoticeTemplates(
+  params: NoticeTemplateListParams = {},
+): Promise<SendgoResponse> {
+  return getClient().noticeTemplates.list(params);
+}
+
+/** 알림톡 검수 요청. 결과는 비동기이므로 `syncNoticeTemplate()` 로 폴링한다. */
+export async function requestNoticeTemplateInspection(
+  templateCode: string,
+  comment?: string,
+): Promise<SendgoResponse> {
+  return getClient().noticeTemplates.requestInspection(templateCode, comment);
+}
+
+/** 알림톡 템플릿 상태 동기화 — `inspectionStatus` 가 APR 이 되는지 확인한다. */
+export async function syncNoticeTemplate(templateCode: string): Promise<SendgoResponse> {
+  return getClient().noticeTemplates.sync(templateCode);
+}
+
+/** 브랜드메시지 템플릿 등록. 알림톡과 달리 검수 요청 단계가 없다. */
+export async function createBrandTemplate(
+  params: BrandTemplateParams,
+): Promise<SendgoResponse> {
+  return getClient().brandTemplates.create(params);
+}
+
+/** 브랜드메시지 템플릿 목록. */
+export async function listBrandTemplates(
+  params: BrandTemplateListParams = {},
+): Promise<SendgoResponse> {
+  return getClient().brandTemplates.list(params);
+}
+
+/** 발신번호 유형과 유형별 필수 서류. */
+export async function senderNumberTypes(): Promise<SendgoResponse> {
+  return getClient().senderRegistration.numberTypes();
+}
+
+/** 발신번호 등록 전 형식·중복 확인. */
+export async function validateSenderNumber(
+  phoneE164: string,
+  senderNumberType: SenderNumberType,
+): Promise<SendgoResponse> {
+  return getClient().senderRegistration.validate(phoneE164, senderNumberType);
+}
+
+/**
+ * 발신번호 등록 신청. 접수만 되고(`PENDING`) 운영자 승인 후 쓸 수 있다.
+ *
+ * 휴대폰 유형은 PASS 본인인증이 필요해 `IDENTITY_VERIFICATION_REQUIRED` 로
+ * 거절된다 — 콘솔에서 등록해야 한다.
+ */
+export async function registerSender(
+  params: SenderRegistrationParams,
+  files: SenderRegistrationFiles,
+): Promise<SendgoResponse> {
+  return getClient().senderRegistration.create(params, files);
+}
+
+/** 발신번호 목록. 심사 상태(`status`)를 여기서 확인한다. */
+export async function listSenders(): Promise<SendgoResponse> {
+  return getClient().senderRegistration.list();
+}
+
+/** 문자 상용구 템플릿 등록. */
+export async function createMessageTemplate(
+  params: MessageTemplateParams,
+): Promise<SendgoResponse> {
+  return getClient().messageTemplates.create(params);
+}
+
+/** 문자 상용구 템플릿 목록. */
+export async function listMessageTemplates(
+  params: MessageTemplateListParams = {},
+): Promise<SendgoResponse> {
+  return getClient().messageTemplates.list(params);
+}
+
+/** 카카오 이미지 업로드. 브랜드메시지 템플릿의 imageUrl 은 이걸로 받는다. */
+export async function uploadKakaoImage(
+  type: KakaoImageSingleType,
+  image: MultipartFile,
+): Promise<SendgoResponse> {
+  return getClient().kakaoImages.upload(type, image);
+}
+
+/** 카카오 다중 이미지 업로드 (캐러셀·와이드 아이템 리스트). */
+export async function uploadKakaoImages(
+  type: KakaoImageMultiType,
+  images: MultipartFile[],
+): Promise<SendgoResponse> {
+  return getClient().kakaoImages.uploadMany(type, images);
+}
+
+/** 수신거부(080) 번호 목록. `since` 로 증분만 가져간다. */
+export async function listRejectedNumbers(
+  params: RejectedNumberListParams = {},
+): Promise<SendgoResponse> {
+  return getClient().rejectedNumbers.list(params);
+}
+
+/**
+ * 이벤트 웹훅 구독. 등록·심사 결과를 폴링하지 않고 받는다.
+ *
+ * 생성한 시크릿은 응답에서 한 번만 나온다 — 즉시 저장할 것.
+ */
+export async function subscribeWebhook(
+  params: WebhookSubscriptionParams,
+): Promise<SendgoResponse> {
+  return getClient().webhook.subscribe(params);
+}
+
+/** 현재 웹훅 구독 설정과 마지막 전송 결과. */
+export async function getWebhook(): Promise<SendgoResponse> {
+  return getClient().webhook.show();
+}
+
+/** 테스트 이벤트 발송 — 엔드포인트와 서명 검증 확인용. */
+export async function testWebhook(): Promise<SendgoResponse> {
+  return getClient().webhook.test();
 }
 
 /** Sendgo 클라이언트 직접 접근 (Server Components / Route Handlers) */
