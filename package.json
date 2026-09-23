@@ -1,6 +1,6 @@
 {
   "name": "@sendgo/react",
-  "version": "1.4.0",
+  "version": "1.5.0",
   "description": "Sendgo React SDK — 카카오 알림톡/브랜드메시지, SMS/LMS/MMS (Next.js / Server Actions)",
   "repository": {
     "type": "git",
@@ -35,13 +35,13 @@
   "license": "MIT",
   "peerDependencies": {
     "react": ">=18.0.0",
-    "@sendgo/node": "^1.4.0"
+    "@sendgo/node": "^1.5.0"
   },
   "devDependencies": {
     "typescript": "^5.4.0",
     "@types/node": "^20.0.0",
     "@types/react": "^18.0.0",
-    "@sendgo/node": "^1.4.0"
+    "@sendgo/node": "^1.5.0"
   },
   "engines": {"node": ">=18"}
 }

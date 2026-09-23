@@ -349,3 +349,18 @@ export async function testWebhook(): Promise<SendgoResponse> {
 export function createSendgoClient(config?: SendgoConfig): Sendgo {
   return config ? new Sendgo(config) : getClient();
 }
+
+/** 폴더 트리를 조회합니다. 서버 코드에서만 호출합니다. */
+export async function listTemplateFolders(params: import('@sendgo/node').TemplateFolderListParams = {}): Promise<SendgoResponse> {
+  return getClient().templateFolders.list(params);
+}
+
+/** 루트 또는 하위 폴더를 생성합니다. */
+export async function createTemplateFolder(params: import('@sendgo/node').TemplateFolderCreateParams): Promise<SendgoResponse> {
+  return getClient().templateFolders.create(params);
+}
+
+/** 템플릿을 폴더 또는 미분류(null)로 이동합니다. */
+export async function assignTemplateFolder(params: import('@sendgo/node').TemplateFolderAssignParams): Promise<SendgoResponse> {
+  return getClient().templateFolders.assign(params);
+}
